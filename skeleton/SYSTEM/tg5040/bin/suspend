@@ -38,24 +38,30 @@ main() {
     if pgrep wpa_supplicant; then
         wpa_running=1
         >&2 echo "Stopping wpa_supplicant..."
-        killall -9 wpa_supplicant
+        killall -9 wpa_supplicant || >&2 echo "Failed to kill wpa_supplicant"
     fi
-    ifconfig wlan0 down
+    if ! ifconfig wlan0 down; then
+        >&2 echo "Failed to bring down wlan0"
+        exit 1
+    fi
 
     if pgrep hciattach; then
         hciattach_running=1
         >&2 echo "Stopping hciattach..."
-        /etc/init.d/hciattach stop
+        /etc/init.d/hciattach stop || >&2 echo "Failed to stop hciattach"
     fi
     if pgrep bluetoothd; then
         bluetoothd_running=1
         >&2 echo "Stopping bluetoothd..."
-        /etc/bluetooth/bluetoothd stop
-        killall -15 bluealsa
+        /etc/bluetooth/bluetoothd stop || >&2 echo "Failed to stop bluetoothd"
+        killall -15 bluealsa || >&2 echo "Failed to kill bluealsa"
     fi
 
     >&2 echo "Blocking wireless..."
-    echo 0 >/sys/class/rfkill/rfkill0/state
+    if ! echo 0 >/sys/class/rfkill/rfkill0/state; then
+        >&2 echo "Failed to block wireless (rfkill)"
+        exit 1
+    fi
 
     >&2 echo "Suspending..."
     echo mem >/sys/power/state
